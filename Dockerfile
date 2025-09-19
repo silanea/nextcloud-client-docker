@@ -1,46 +1,40 @@
-# Base GUI image
+# 1. Base GUI image (working Debian tag)
 FROM jlesage/baseimage-gui:debian-12-v4
 
-# Install dependencies for Nextcloud client
+# 2. Install dependencies for AppImage execution and cron
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        git \
-        cmake \
-        build-essential \
-        pkg-config \
-        qt6-base-dev \
-        qt6-tools-dev \
-        qt6-tools-dev-tools \
-        qt6-webengine-dev \
-        qt6-svg-dev \
-        libssl-dev \
-        libsqlite3-dev \
-        cron \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y wget fuse cron && \
+    rm -rf /var/lib/apt/lists/*
 
-# Clone and build the latest Nextcloud client
-RUN git clone --depth 1 https://github.com/nextcloud/desktop.git /tmp/nextcloud && \
-    cd /tmp/nextcloud && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make -j$(nproc) && \
-    make install
+# 3. Create directory for Nextcloud AppImage and config
+ENV NEXTCLOUD_DIR=/opt/nextcloud
+ENV NEXTCLOUD_CONFIG=/config
+RUN mkdir -p $NEXTCLOUD_DIR
 
-# Set up auto-update script
-COPY nextcloud-auto-update.sh /usr/local/bin/nextcloud-auto-update.sh
-RUN chmod +x /usr/local/bin/nextcloud-auto-update.sh
+# 4. Script to download latest AppImage
+RUN echo '#!/bin/bash\n' \
+         'set -e\n' \
+         'APPIMAGE_URL=$(curl -s https://api.github.com/repos/nextcloud/desktop/releases/latest | grep browser_download_url | grep AppImage | cut -d '"' -f 4)\n' \
+         'wget -O /opt/nextcloud/Nextcloud.AppImage "$APPIMAGE_URL"\n' \
+         'chmod +x /opt/nextcloud/Nextcloud.AppImage\n' \
+         > /usr/local/bin/update-nextcloud.sh && chmod +x /usr/local/bin/update-nextcloud.sh
 
-# Configure cron to run auto-update every day at 3:00 AM
-RUN echo "0 3 * * * /usr/local/bin/nextcloud-auto-update.sh >> /var/log/nextcloud-update.log 2>&1" > /etc/cron.d/nextcloud-cron && \
-    chmod 0644 /etc/cron.d/nextcloud-cron && \
-    crontab /etc/cron.d/nextcloud-cron
+# 5. Initial download
+RUN /usr/local/bin/update-nextcloud.sh
 
-# Expose GUI via web
-ENV USER_UID=1000 \
-    USER_GID=1000 \
-    DISPLAY=:0 \
-    ENABLE_VNC=true
+# 6. Add cron job for daily auto-update
+RUN echo "0 3 * * * root /usr/local/bin/update-nextcloud.sh >/dev/null 2>&1" > /etc/cron.d/nextcloud-update
+RUN chmod 0644 /etc/cron.d/nextcloud-update && crontab /etc/cron.d/nextcloud-update
 
-# Start baseimage-gui init system
-CMD ["/usr/local/bin/start.sh"]
+# 7. Wrapper script to start Nextcloud automatically
+RUN echo '#!/bin/bash\n' \
+         'set -e\n' \
+         '# Start cron\n' \
+         'service cron start\n' \
+         '# Launch Nextcloud AppImage\n' \
+         'exec /opt/nextcloud/Nextcloud.AppImage --no-sandbox\n' \
+         > /usr/local/bin/start-nextcloud.sh && chmod +x /usr/local/bin/start-nextcloud.sh
+
+# 8. Expose GUI via noVNC / container GUI
+ENV APPIMAGE_PATH=$NEXTCLOUD_DIR/Nextcloud.AppImage
+CMD ["/usr/local/bin/start-nextcloud.sh"]

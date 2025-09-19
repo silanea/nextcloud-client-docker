@@ -1,62 +1,54 @@
-# Stage 1: Build
-FROM jlesage/baseimage-gui:debian-12 AS build
+# Stage to fetch and prepare Nextcloud client
+FROM jlesage/baseimage-gui:debian-12 AS nextcloud-version
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    cmake \
-    build-essential \
-    pkg-config \
-    qtbase5-dev \
-    qttools5-dev \
-    libqt5network5 \
-    libqt5sql5 \
-    libqt5sql5-sqlite \
-    libqt5webkit5-dev \
-    libssl-dev \
-    libsqlite3-dev \
-    libfuse2 \
-    wget \
-    ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        git \
+        build-essential \
+        cmake \
+        qtbase5-dev \
+        qttools5-dev-tools \
+        qtdeclarative5-dev \
+        libqt5network5 \
+        libqt5widgets5 \
+        libqt5gui5 \
+        libqt5core5a \
+        zlib1g-dev \
+        libssl-dev \
+        libsqlite3-dev \
+        wget \
+        ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
 
-# Set build directory
-WORKDIR /tmp/build
+# Clone the latest Nextcloud client source
+RUN git clone --depth 1 https://github.com/nextcloud/desktop.git /tmp/nextcloud && \
+    cd /tmp/nextcloud && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc)
 
-# Fetch the latest Nextcloud client source dynamically
-RUN LATEST=$(wget -qO- https://api.github.com/repos/nextcloud/desktop/releases/latest | \
-     grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/') && \
-    echo "Latest release: $LATEST" && \
-    wget -O nextcloud-client.zip https://github.com/nextcloud/desktop/archive/refs/tags/$LATEST.zip && \
-    unzip nextcloud-client.zip && \
-    mv desktop-$LATEST nextcloud-client
+# The resulting binary
+RUN cp /tmp/nextcloud/build/client/nextcloud /usr/local/bin/nextcloud
 
-# Build the client
-WORKDIR /tmp/build/nextcloud-client
-RUN mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    make -j$(nproc) && make install
-
-# Stage 2: Runtime
+# Final image
 FROM jlesage/baseimage-gui:debian-12
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libqt5network5 \
-    libqt5sql5 \
-    libqt5sql5-sqlite \
-    libqt5webkit5 \
-    libssl1.1 \
-    libsqlite3-0 \
-    libfuse2 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the built binary from the previous stage
+COPY --from=nextcloud-version /usr/local/bin/nextcloud /usr/local/bin/nextcloud
 
-# Copy Nextcloud client from build stage
-COPY --from=build /usr/local /usr/local
-
-# Expose GUI if needed
-ENV DISPLAY=:0
+# Install runtime dependencies
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        libqt5network5 \
+        libqt5widgets5 \
+        libqt5gui5 \
+        libqt5core5a \
+        zlib1g \
+        libssl1.1 \
+        libsqlite3-0 \
+        ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
 
 # Set default command
 CMD ["/usr/local/bin/nextcloud"]

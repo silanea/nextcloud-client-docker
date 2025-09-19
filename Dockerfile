@@ -1,45 +1,62 @@
-########################################
-# Stage 1: Temporary stage to detect Nextcloud version
-########################################
-FROM debian:12-slim AS nextcloud-version
+# Stage 1: Build
+FROM jlesage/baseimage-gui:debian-12 AS build
 
-# Install required tools
-RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends wget gnupg2 ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    cmake \
+    build-essential \
+    pkg-config \
+    qtbase5-dev \
+    qttools5-dev \
+    libqt5network5 \
+    libqt5sql5 \
+    libqt5sql5-sqlite \
+    libqt5webkit5-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    libfuse2 \
+    wget \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
-# Add Nextcloud repository and write version to /version.txt
-RUN wget -qO - https://download.opensuse.org/repositories/home:nextcloud/Debian_12/Release.key \
-      | gpg --dearmor > /usr/share/keyrings/nextcloud.gpg && \
-    echo 'deb [signed-by=/usr/share/keyrings/nextcloud.gpg] https://download.opensuse.org/repositories/home:/nextcloud/Debian_12/ /' \
-      > /etc/apt/sources.list.d/nextcloud.list && \
-    apt-get update -qq && \
-    apt-get install -y --no-install-recommends nextcloud-desktop && \
-    apt-cache policy nextcloud-desktop | grep Candidate | awk '{print $2}' > /version.txt && \
-    apt-get purge -y nextcloud-desktop && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+# Set build directory
+WORKDIR /tmp/build
 
-########################################
-# Stage 2: Final GUI container
-########################################
+# Fetch the latest Nextcloud client source dynamically
+RUN LATEST=$(wget -qO- https://api.github.com/repos/nextcloud/desktop/releases/latest | \
+     grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/') && \
+    echo "Latest release: $LATEST" && \
+    wget -O nextcloud-client.zip https://github.com/nextcloud/desktop/archive/refs/tags/$LATEST.zip && \
+    unzip nextcloud-client.zip && \
+    mv desktop-$LATEST nextcloud-client
+
+# Build the client
+WORKDIR /tmp/build/nextcloud-client
+RUN mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && make install
+
+# Stage 2: Runtime
 FROM jlesage/baseimage-gui:debian-12
 
-LABEL maintainer="you@example.com" \
-      app="Nextcloud Desktop Client"
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libqt5network5 \
+    libqt5sql5 \
+    libqt5sql5-sqlite \
+    libqt5webkit5 \
+    libssl1.1 \
+    libsqlite3-0 \
+    libfuse2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Nextcloud Desktop and dependencies
-RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends \
-        wget gnupg2 ca-certificates \
-        adwaita-icon-theme \
-        nextcloud-desktop && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Copy Nextcloud client from build stage
+COPY --from=build /usr/local /usr/local
 
-# Add startup script
-COPY startapp.sh /etc/my_init.d/10_nextcloud.sh
-RUN chmod +x /etc/my_init.d/10_nextcloud.sh
+# Expose GUI if needed
+ENV DISPLAY=:0
 
-# Expose ports for noVNC/VNC
-EXPOSE 5800 5900
+# Set default command
+CMD ["/usr/local/bin/nextcloud"]

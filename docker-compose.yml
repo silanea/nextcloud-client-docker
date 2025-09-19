@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  nextcloud-client:
+    build: .
+    container_name: nextcloud-client
+    ports:
+      - "5800:5800"   # Web (noVNC)
+      - "5900:5900"   # VNC
+    volumes:
+      - ./config:/config
+      - ./data:/mnt/data
+    restart: unless-stopped

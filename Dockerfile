@@ -1,5 +1,5 @@
 # Base GUI image
-FROM jlesage/baseimage-gui:debian-12
+FROM jlesage/baseimage-gui:debian-12-v4
 
 # Install dependencies for Nextcloud client
 RUN apt-get update && \

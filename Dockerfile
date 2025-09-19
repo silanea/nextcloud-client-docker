@@ -1,5 +1,5 @@
 # Stage to fetch and prepare Nextcloud client
-FROM jlesage/baseimage-gui:debian-12 AS nextcloud-version
+FROM jlesage/baseimage-gui:debian-12-v4.9 AS nextcloud-version
 
 # Install build dependencies
 RUN apt-get update && \

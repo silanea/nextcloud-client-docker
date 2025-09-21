@@ -26,9 +26,9 @@ jobs:
         run: |
           docker build \
             --pull \
-            -t your-dockerhub-username/nextcloud-gui:latest \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/nextcloud-gui:latest \
             .
 
       - name: Push Docker image
         run: |
-          docker push your-dockerhub-username/nextcloud-gui:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/nextcloud-gui:latest

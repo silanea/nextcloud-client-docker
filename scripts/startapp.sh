@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-# Install dependencies
-apt-get update
-apt-get install -y wget curl fuse libfuse2
-
-# Make sure dirs exist
-mkdir -p /config /sync
-
-# Always update Nextcloud AppImage
+# Run updater once at container start
 /scripts/update-nextcloud.sh
 
-# Launch Nextcloud client
-/config/Nextcloud-latest-x86_64.AppImage --background
+# Start cron in background
+service cron start
+
+# Launch Nextcloud client in background mode
+exec /config/Nextcloud-latest-x86_64.AppImage --background

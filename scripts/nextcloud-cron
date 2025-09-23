@@ -1,2 +1,0 @@
-# Run Nextcloud client updater once per day at 3 AM
-0 3 * * * root /scripts/update-nextcloud.sh >> /var/log/nextcloud-update.log 2>&1

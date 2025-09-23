@@ -11,7 +11,6 @@ RUN apt-get update && \
 # Add rootfs contents (services + cron job)
 COPY rootfs/ /
 # Make sure the update script is executable
-RUN chmod +x /usr/local/bin/update-nextcloud.sh
+RUN chmod +x /usr/local/bin/update-nextcloud.sh /startapp.sh
 # Expose GUI port (VNC/noVNC)
-EXPOSE 5800
-EXPOSE 5900
+EXPOSE 5800 5900

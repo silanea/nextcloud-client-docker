@@ -1,0 +1,2 @@
+# Run updater daily at 02:00
+0 2 * * * root /usr/local/bin/update.sh >> /var/log/cron.log 2>&1

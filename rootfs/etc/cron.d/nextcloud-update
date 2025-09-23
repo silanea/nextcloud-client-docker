@@ -1,0 +1,2 @@
+# Run daily at midnight
+0 0 * * * root /usr/local/bin/update-nextcloud.sh

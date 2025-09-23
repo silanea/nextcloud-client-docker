@@ -1,18 +1,10 @@
-version: "3.9"
-
+version: "3.8"
 services:
-  nextcloud-client:
-    image: jlesage/baseimage-gui:debian-12-v4
-    container_name: nextcloud-client
+  nextcloud-client-docker:
+    build: .
+    image: ${{ secrets.DOCKERHUB_USERNAME }}/nextcloud-client-docker:latest
+    container_name: nextcloud-client-docker
     restart: unless-stopped
-    environment:
-      - USER_ID=1000    # NAS user ID
-      - GROUP_ID=100    # NAS group ID
-      - RESOLUTION=1920x1080    
     ports:
-      - "5800:5800"   # Web GUI (VNC in browser)
-      - "5900:5900"   # Optional VNC client access
-    volumes:
-      - /Media/Containers/NextCloudClient/config:/config          # persistent app config
-      - /Media/Containers/NextCloudClient/sync:/sync              # synced Nextcloud data
-      - /Media/Containers/NextCloudClient/scripts:/scripts:ro     # helper scripts
+      - "5800:5800"   # Web GUI
+      - "5900:5900"   # VNC

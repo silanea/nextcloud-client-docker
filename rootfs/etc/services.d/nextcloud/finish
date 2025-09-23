@@ -1,0 +1,3 @@
+#!/bin/bash
+# Called when service exits, triggers restart
+exit 0

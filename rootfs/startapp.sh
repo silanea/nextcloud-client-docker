@@ -1,6 +1,10 @@
 #!/bin/bash
-# rootfs/startapp.sh
-set -e
+# Entry point for the GUI app (executed by baseimage-gui after X11 is up)
 
-# Run the Nextcloud desktop client (GUI)
+# Run update script at startup
+if [ -x /usr/local/bin/update-nextcloud.sh ]; then
+    /usr/local/bin/update-nextcloud.sh || true
+fi
+
+# Launch full GUI Nextcloud client
 exec /usr/bin/nextcloud

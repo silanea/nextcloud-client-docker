@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nextcloud-desktop \
         cron \
-        dbus dbus-x11 \
+        dbus-x11 \
         procps \
         mesa-utils \
         libgl1 \

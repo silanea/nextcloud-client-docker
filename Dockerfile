@@ -1,9 +1,12 @@
 # Base image with GUI support
 FROM jlesage/baseimage-gui:debian-12-v4
 
-ENV QT_XCB_GL_INTEGRATION=none \
-    QT_QUICK_BACKEND=software \
+ENV QTWEBENGINE_DISABLE_SANDBOX=1 \
+    QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-software-rasterizer" \
     LIBGL_ALWAYS_SOFTWARE=1 \
+    QT_QUICK_BACKEND=software \
+    QT_XCB_GL_INTEGRATION=none \
+    QT_AUTO_SCREEN_SCALE_FACTOR=0 \
     DISPLAY=:1
 
 # Install packages

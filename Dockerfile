@@ -1,17 +1,6 @@
 # Base image with GUI support
 FROM jlesage/baseimage-gui:debian-12-v4
 
-ENV QTWEBENGINE_DISABLE_SANDBOX=1 \
-    QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-software-rasterizer" \
-    LIBGL_ALWAYS_SOFTWARE=1 \
-    LIBGL_ALWAYS_INDIRECT=1 \
-    QT_QUICK_BACKEND=software \
-    QT_XCB_GL_INTEGRATION=none \
-    MESA_LOADER_DRIVER_OVERRIDE=llvmpipe \
-    QT_QPA_PLATFORM=xcb \
-    QT_AUTO_SCREEN_SCALE_FACTOR=0 \
-    DISPLAY=:0
-
 # Install packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -42,7 +31,7 @@ COPY rootfs/ /
 RUN chmod +x /usr/local/bin/update-nextcloud.sh /startapp.sh
 
 # Disable compositor to prevent GUI crashes
-RUN rm -f /etc/services.d/xcompmgr/run || true
+# RUN rm -f /etc/services.d/xcompmgr/run || true
 
 # Expose GUI ports
 EXPOSE 5800 5900

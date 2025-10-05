@@ -1,5 +1,9 @@
 #!/bin/bash
 # Entry point for the GUI app (executed by baseimage-gui after X11 is up)
+export DISPLAY=:0
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
 
 set -Eeuo pipefail
 
@@ -22,12 +26,22 @@ export QT_XCB_GL_INTEGRATION=none
 export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 export QT_QPA_PLATFORM=xcb
 export QT_AUTO_SCREEN_SCALE_FACTOR=0
-export DISPLAY=:0
 
 echo "[startapp] Starting dbus-daemon (session)..."
 dbus-daemon --session --fork
 
 sleep 2
+
+# Wait for X server to be ready
+echo "[startapp] Waiting for X server..."
+for i in $(seq 1 10); do
+    if xdpyinfo -display :0 >/dev/null 2>&1; then
+        echo "[startapp] X server is ready."
+        break
+    fi
+    echo "[startapp] X server not ready yet ($i)..."
+    sleep 1
+done
 
 # Run Nextcloud client inside loop for crash recovery
 while true; do

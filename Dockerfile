@@ -14,6 +14,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nextcloud-desktop \
         cron \
+        dbus-x11 \
+        libgl1-mesa-glx \
+        libgl1-mesa-dri \
+        libxcb-glx0 \        
         && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Persist Nextcloud configuration

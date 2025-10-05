@@ -1,6 +1,8 @@
 #!/bin/bash
 # Entry point for the GUI app (executed by baseimage-gui after X11 is up)
 
+set -Eeuo pipefail
+
 # Run update script at startup
 if [ -x /usr/local/bin/update-nextcloud.sh ]; then
     /usr/local/bin/update-nextcloud.sh || true
@@ -14,23 +16,16 @@ echo "[startapp] Launching ${APP_NAME}..."
 export QTWEBENGINE_DISABLE_SANDBOX=1
 export QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-software-rasterizer"
 export LIBGL_ALWAYS_SOFTWARE=1
+export LIBGL_ALWAYS_INDIRECT=1
 export QT_QUICK_BACKEND=software
 export QT_XCB_GL_INTEGRATION=none
+export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+export QT_QPA_PLATFORM=xcb
 export QT_AUTO_SCREEN_SCALE_FACTOR=0
 export DISPLAY=:1
 
-# Ensure /var/run/dbus exists
-mkdir -p /var/run/dbus
-
-# Start dbus-daemon if not running
-if ! command -v pgrep >/dev/null; then
-    echo "[startapp] Warning: pgrep missing, skipping check."
-else
-    if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
-        echo "[startapp] Starting dbus-daemon..."
-        dbus-daemon --system --fork
-    fi
-fi
+echo "[startapp] Starting dbus-daemon (session)..."
+dbus-daemon --session --fork
 
 sleep 2
 

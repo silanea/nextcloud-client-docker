@@ -24,7 +24,9 @@ RUN apt-get update && \
         libegl1 \
         libglx-mesa0 \
         libgl1-mesa-dri \
-        libxcb-glx0 \       
+        libxcb-glx0 \
+        x11-utils \
+        libxcb-xinerama0 libxcb-render0 libxcb-render-util0 libxkbcommon-x11-0 \
         && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Persist Nextcloud configuration

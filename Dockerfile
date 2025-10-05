@@ -4,10 +4,13 @@ FROM jlesage/baseimage-gui:debian-12-v4
 ENV QTWEBENGINE_DISABLE_SANDBOX=1 \
     QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-software-rasterizer" \
     LIBGL_ALWAYS_SOFTWARE=1 \
+    LIBGL_ALWAYS_INDIRECT=1 \
     QT_QUICK_BACKEND=software \
     QT_XCB_GL_INTEGRATION=none \
+    MESA_LOADER_DRIVER_OVERRIDE=llvmpipe \
+    QT_QPA_PLATFORM=xcb \
     QT_AUTO_SCREEN_SCALE_FACTOR=0 \
-    DISPLAY=:1
+    DISPLAY=:0
 
 # Install packages
 RUN apt-get update && \

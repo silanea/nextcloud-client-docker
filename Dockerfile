@@ -1,3 +1,6 @@
+# Base image with GUI support
+FROM jlesage/baseimage-gui:debian-12-v4
+
 ENV QT_XCB_GL_INTEGRATION=none \
     QT_QUICK_BACKEND=software \
     LIBGL_ALWAYS_SOFTWARE=1 \

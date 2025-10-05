@@ -19,13 +19,19 @@ export QT_XCB_GL_INTEGRATION=none
 export QT_AUTO_SCREEN_SCALE_FACTOR=0
 export DISPLAY=:1
 
-# Initialize D-Bus if not running
-if ! pgrep -x dbus-daemon > /dev/null; then
-    echo "[startapp] Starting dbus-daemon..."
-    dbus-daemon --system &
+# Ensure /var/run/dbus exists
+mkdir -p /var/run/dbus
+
+# Start dbus-daemon if not running
+if ! command -v pgrep >/dev/null; then
+    echo "[startapp] Warning: pgrep missing, skipping check."
+else
+    if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
+        echo "[startapp] Starting dbus-daemon..."
+        dbus-daemon --system --fork
+    fi
 fi
 
-# Wait a moment for the display server to be ready
 sleep 2
 
 # Run Nextcloud client inside loop for crash recovery

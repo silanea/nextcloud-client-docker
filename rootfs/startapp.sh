@@ -6,10 +6,26 @@ if [ -x /usr/local/bin/update-nextcloud.sh ]; then
     /usr/local/bin/update-nextcloud.sh || true
 fi
 
-# Launch full GUI Nextcloud client
-echo "[startapp] Starting Nextcloud Desktop Client..."
+APP_NAME="Nextcloud Client"
+
+echo "[startapp] Launching ${APP_NAME}..."
+
+# Force software rendering & disable sandbox for WebEngine
+export QTWEBENGINE_DISABLE_SANDBOX=1
+export QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox --disable-gpu --disable-software-rasterizer"
+export LIBGL_ALWAYS_SOFTWARE=1
+export QT_QUICK_BACKEND=software
+export QT_XCB_GL_INTEGRATION=none
+export QT_AUTO_SCREEN_SCALE_FACTOR=0
+export DISPLAY=:1
+
+# Run Nextcloud client inside loop for crash recovery
 while true; do
-    exec /usr/bin/nextcloud
-    echo "[startapp] Nextcloud exited. Restarting in 5 seconds..."
-    sleep 5
+    echo "[startapp] Starting nextcloud..."
+    nextcloud &
+    APP_PID=$!
+
+    wait $APP_PID
+    echo "[startapp] Nextcloud exited. Restarting in 10 seconds..."
+    sleep 10
 done

@@ -7,4 +7,9 @@ if [ -x /usr/local/bin/update-nextcloud.sh ]; then
 fi
 
 # Launch full GUI Nextcloud client
-exec /usr/bin/nextcloud
+echo "[startapp] Starting Nextcloud Desktop Client..."
+while true; do
+    exec /usr/bin/nextcloud
+    echo "[startapp] Nextcloud exited. Restarting in 5 seconds..."
+    sleep 5
+done

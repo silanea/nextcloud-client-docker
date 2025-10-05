@@ -22,7 +22,7 @@ export QT_XCB_GL_INTEGRATION=none
 export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 export QT_QPA_PLATFORM=xcb
 export QT_AUTO_SCREEN_SCALE_FACTOR=0
-export DISPLAY=:1
+export DISPLAY=:0
 
 echo "[startapp] Starting dbus-daemon (session)..."
 dbus-daemon --session --fork

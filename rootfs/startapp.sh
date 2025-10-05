@@ -19,6 +19,15 @@ export QT_XCB_GL_INTEGRATION=none
 export QT_AUTO_SCREEN_SCALE_FACTOR=0
 export DISPLAY=:1
 
+# Initialize D-Bus if not running
+if ! pgrep -x dbus-daemon > /dev/null; then
+    echo "[startapp] Starting dbus-daemon..."
+    dbus-daemon --system &
+fi
+
+# Wait a moment for the display server to be ready
+sleep 2
+
 # Run Nextcloud client inside loop for crash recovery
 while true; do
     echo "[startapp] Starting nextcloud..."

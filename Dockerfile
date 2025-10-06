@@ -54,9 +54,9 @@ RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 RUN mkdir -p /config/.config /config/.local/share && \
     chown -R ${USER}:${USER} /config
 
-RUN mkdir -p "/config/.config" "/config/.local/share"
-RUN ln -snf "/config/.config" /root/.config
-RUN ln -snf "/config/.local/share" /root/.local/share    
+# RUN mkdir -p "/config/.config" "/config/.local/share"
+# RUN ln -snf "/config/.config" /root/.config
+# RUN ln -snf "/config/.local/share" /root/.local/share    
 
 # Add rootfs (cron + startup script)
 COPY rootfs/ /

@@ -52,7 +52,7 @@ RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 # 2️⃣ Configuration directories (persistent)
 # ----------------------------------------------------
 RUN mkdir -p /config/.config /config/.local/share && \
-    chown -R ${USER}:${USER} /config
+    chown -R app:app /config
 
 # RUN mkdir -p "/config/.config" "/config/.local/share"
 # RUN ln -snf "/config/.config" /root/.config
@@ -69,3 +69,5 @@ RUN chmod +x /usr/local/bin/update-nextcloud.sh /startapp.sh
 
 # Expose GUI ports
 EXPOSE 5800 5900
+
+USER app

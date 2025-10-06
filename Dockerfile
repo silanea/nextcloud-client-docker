@@ -2,6 +2,9 @@
 FROM jlesage/baseimage-gui:debian-12-v4
 
 USER root
+ENV APP_NAME="nextcloud" \
+    KEEP_APP_RUNNING=1 \
+    HOME=/config
 
 # ----------------------------------------------------
 # 1️⃣ System setup and dependencies
@@ -49,10 +52,11 @@ RUN apt-get update && \
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 
 # ----------------------------------------------------
-# 2️⃣ Configuration directories (persistent)
+# Create configuration directories
+# These will be re-owned automatically by the runtime user.
 # ----------------------------------------------------
-RUN mkdir -p /config/.config /config/.local/share && \
-    chown -R app:app /config
+RUN mkdir -p /defaults/config/.config/Nextcloud && \
+    chmod -R 777 /defaults/config
 
 # RUN mkdir -p "/config/.config" "/config/.local/share"
 # RUN ln -snf "/config/.config" /root/.config

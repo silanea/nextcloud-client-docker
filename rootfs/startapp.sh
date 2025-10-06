@@ -4,6 +4,8 @@ export XDG_RUNTIME_DIR=/tmp/runtime-root
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+CONFIG_DIR="/config"
+APP_HOME="/home/app"
 
 APP_NAME="Nextcloud Client"
 
@@ -21,17 +23,25 @@ echo "[startapp] Preparing environment..."
 
 # --- Persistent config directories ---
 CONFIG_DIR="/config"
+APP_HOME="/home/app"
+
 mkdir -p "${CONFIG_DIR}/.config" "${CONFIG_DIR}/.local/share"
-ln -snf "${CONFIG_DIR}/.config" /root/.config
-ln -snf "${CONFIG_DIR}/.local/share" /root/.local/share
+mkdir -p "${APP_HOME}/.config" "${APP_HOME}/.local/share"
+
+ln -snf "${CONFIG_DIR}/.config" "${APP_HOME}/.config"
+ln -snf "${CONFIG_DIR}/.local/share" "${APP_HOME}/.local/share"
+
+# Ensure correct ownership
+chown -R app:app "${CONFIG_DIR}" "${APP_HOME}/.config" "${APP_HOME}/.local"
 
 # --- Start D-Bus session ---
 DBUS_RUN_DIR="/run/dbus"
 mkdir -p "${DBUS_RUN_DIR}"
 chmod 777 "${DBUS_RUN_DIR}"
-if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
+if ! pgrep -u app dbus-daemon >/dev/null 2>&1; then
     echo "[startapp] Starting dbus-daemon..."
-    dbus-daemon --session --address=unix:path="${DBUS_RUN_DIR}/session_bus_socket" --nofork &
+    mkdir -p /run/dbus
+    dbus-daemon --session --address=unix:path=/run/dbus/session_bus_socket --nofork &
     sleep 1
 fi
 
@@ -46,6 +56,7 @@ for i in {1..30}; do
     sleep 1
 done
 
+export HOME="${APP_HOME}"
 
 # Run Nextcloud client inside loop for crash recovery
 while true; do

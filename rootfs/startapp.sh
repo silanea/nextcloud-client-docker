@@ -21,18 +21,8 @@ fi
 
 echo "[startapp] Preparing environment..."
 
-# --- Persistent config directories ---
-CONFIG_DIR="/config"
-APP_HOME="/home/app"
-
-mkdir -p "${CONFIG_DIR}/.config" "${CONFIG_DIR}/.local/share"
-mkdir -p "${APP_HOME}/.config" "${APP_HOME}/.local/share"
-
-ln -snf "${CONFIG_DIR}/.config" "${APP_HOME}/.config"
-ln -snf "${CONFIG_DIR}/.local/share" "${APP_HOME}/.local/share"
-
-# Ensure correct ownership
-chown -R app:app "${CONFIG_DIR}" "${APP_HOME}/.config" "${APP_HOME}/.local"
+mkdir -p "$HOME/.config/Nextcloud" "$HOME/.local/share"
+chmod 700 "$HOME/.config" "$HOME/.local" "$HOME/.local/share"
 
 # --- Start D-Bus session ---
 DBUS_RUN_DIR="/run/dbus"

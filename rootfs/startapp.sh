@@ -1,8 +1,5 @@
 #!/bin/bash
 # Entry point for the GUI app (executed by baseimage-gui after X11 is up)
-export XDG_RUNTIME_DIR=/tmp/runtime-root
-mkdir -p "$XDG_RUNTIME_DIR"
-chmod 700 "$XDG_RUNTIME_DIR"
 
 CONFIG_DIR="/config"
 APP_HOME="/home/app"
@@ -25,14 +22,16 @@ mkdir -p "$HOME/.config/Nextcloud" "$HOME/.local/share"
 chmod 700 "$HOME/.config" "$HOME/.local" "$HOME/.local/share"
 
 # --- Start D-Bus session ---
-DBUS_RUN_DIR="/run/dbus"
-mkdir -p "${DBUS_RUN_DIR}"
-chmod 777 "${DBUS_RUN_DIR}"
-if ! pgrep -u app dbus-daemon >/dev/null 2>&1; then
-    echo "[startapp] Starting dbus-daemon..."
-    mkdir -p /run/dbus
-    dbus-daemon --session --address=unix:path=/run/dbus/session_bus_socket --nofork &
-    sleep 1
+
+# Create writable runtime dirs for dbus and XDG stuff
+export XDG_RUNTIME_DIR="/tmp/runtime-app"
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+# If dbus is needed, run session bus only
+if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
+    echo "[startapp] Starting user dbus-daemon..."
+    dbus-daemon --session --address=unix:path=$XDG_RUNTIME_DIR/bus &
 fi
 
 # --- Wait for X server (Openbox/Xvnc) ---

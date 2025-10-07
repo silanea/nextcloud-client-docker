@@ -11,10 +11,17 @@ ENV HOME=/config
 # 1️⃣ System setup and dependencies
 # ----------------------------------------------------
 
+RUN apt-get update && \
+    apt-get install -y locales && \
+    locale-gen en_US.UTF-8 && \
+    update-locale LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
 # Install dependencies
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip curl gnupg ca-certificates cron jq locales && \
-    pip3 install pyyaml && \
+    apt-get install -y python3 python3-yaml curl gnupg ca-certificates cron jq && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Nextcloud desktop client and cron
@@ -23,9 +30,6 @@ RUN apt-get update && \
         nextcloud-desktop && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Set locale (avoids Qt warnings)
-RUN echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 
 # ----------------------------------------------------
 # Create configuration directories

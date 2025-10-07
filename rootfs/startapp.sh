@@ -5,6 +5,8 @@ CONFIG_DIR="/config"
 APP_HOME="/home/app"
 
 APP_NAME="Nextcloud Client"
+# Ensure display variable is set by jlesage baseimage
+export DISPLAY=${DISPLAY:-:0}
 
 echo "[startapp] Launching ${APP_NAME}..."
 
@@ -34,16 +36,22 @@ if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
     dbus-daemon --session --address=unix:path=$XDG_RUNTIME_DIR/bus &
 fi
 
-# --- Wait for X server (Openbox/Xvnc) ---
+# Wait for X server readiness
 echo "[startapp] Waiting for X server..."
-for i in {1..30}; do
-    if xdpyinfo -display :1 >/dev/null 2>&1; then
-        echo "[startapp] X server ready."
+for i in $(seq 1 50); do
+    if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+        echo "[startapp] X server is ready."
         break
     fi
-    echo "[startapp] X server not ready yet (${i})..."
+    echo "[startapp] X server not ready yet ($i)..."
     sleep 1
 done
+
+# Give up if X server never came up
+if ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+    echo "[startapp] ERROR: X server not ready after timeout."
+    exit 1
+fi
 
 export HOME="${APP_HOME}"
 

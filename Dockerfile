@@ -10,14 +10,16 @@ ENV APP_NAME="nextcloud" \
 # 1️⃣ System setup and dependencies
 # ----------------------------------------------------
 
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip curl gnupg ca-certificates cron jq locales && \
+    pip3 install pyyaml && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install Nextcloud desktop client and cron
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        nextcloud-desktop \
-        cron \
-        jq \
-        locales \
-        curl && \
+        nextcloud-desktop && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

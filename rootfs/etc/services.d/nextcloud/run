@@ -1,3 +1,0 @@
-#!/bin/bash
-# Start Nextcloud Desktop Client
-exec /usr/bin/nextcloud --background

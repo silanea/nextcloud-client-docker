@@ -20,8 +20,8 @@ fi
 
 echo "[startapp] Preparing environment..."
 
-mkdir -p "$HOME/.config/Nextcloud" "$HOME/.local/share"
-chmod 700 "$HOME/.config" "$HOME/.local" "$HOME/.local/share"
+mkdir -p "$CONFIG_DIR/.config/Nextcloud" "$CONFIG_DIR/.local/share"
+chown -R $(id -u app):$(id -g app) /config
 
 # --- Start D-Bus session ---
 
@@ -82,6 +82,7 @@ export QT_XCB_FORCE_SOFTWARE_OPENGL=1
 export DISABLE_XCOMPMGR=1
 export QT_STYLE_OVERRIDE=Windows
 export QT_QPA_PLATFORMTHEME=
+export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 # ======================
 
 

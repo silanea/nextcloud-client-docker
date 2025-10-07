@@ -13,6 +13,11 @@ export XDG_STATE_HOME="/config/xdg/state"
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 
+export CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
+export CONFIG_DIR="$CONFIG_HOME/Nextcloud"
+export CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
+export ACCOUNTS_FILE="/config/accounts.yml"
+
 # ------------------------------------------------------------------------------
 # Generate configuration from YAML
 # ------------------------------------------------------------------------------

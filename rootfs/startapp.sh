@@ -36,7 +36,7 @@ for idx, acct in enumerate(data["accounts"]):
     print(f"{idx}\\AppPassword={password}")
     print(f"{idx}\\SyncDir={sync_dir}")
     print(f"{idx}\\Autostart=true")
-EOF >> "$CFG_FILE"
+EOF
 
 # Accept SSL certs automatically
 export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

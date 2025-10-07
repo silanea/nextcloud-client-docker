@@ -6,6 +6,9 @@ export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # ------------------------------------------------------------------------------
 # Directories and files
 # ------------------------------------------------------------------------------
+mkdir -p /xdg/config /xdg/cache /xdg/data /xdg/state
+chown -R $(id -u):$(id -g) /xdg
+
 CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
 CONFIG_DIR="$CONFIG_HOME/Nextcloud"
 CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
@@ -15,6 +18,8 @@ ACCOUNTS_FILE="/config/accounts.yml"
 
 # Ensure directory structure
 mkdir -p "$CONFIG_DIR" "$LEGACY_CONFIG_DIR" /sync
+rm -f "$LEGACY_CONFIG_FILE"
+ln -sf "$CONFIG_FILE" "$LEGACY_CONFIG_FILE"
 
 # ------------------------------------------------------------------------------
 # Unify configuration path: always use /xdg/config/Nextcloud/nextcloud.cfg

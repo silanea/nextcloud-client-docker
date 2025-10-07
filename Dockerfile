@@ -24,7 +24,7 @@ ENV LANG=en_US.UTF-8
 ARG DEBIAN_FRONTEND=noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
-    apt-get install -y python3 python3-yaml curl gnupg ca-certificates cron jq && \
+    apt-get install -y python3 python3-yaml curl gnupg ca-certificates cron tree jq && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Nextcloud desktop client and cron

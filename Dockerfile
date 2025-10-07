@@ -21,7 +21,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Set locale (avoids Qt warnings)
-RUN echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 
 # ----------------------------------------------------
 # Create configuration directories

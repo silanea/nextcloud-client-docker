@@ -34,7 +34,7 @@ for idx, acct in enumerate(data["accounts"]):
     print(f"{idx}\\AppPassword={password}")
     print(f"{idx}\\Autostart=true")
     print(f"{idx}\\SyncDir={sync_dir}")
-    print(f"{idx}\\URL={url}")
+    print(f"{idx}\\url={url}")
     print(f"{idx}\\User={user}")
     print(f"{idx}\\authType=webflow")
     print(f"{idx}\\webflow_user={user}")

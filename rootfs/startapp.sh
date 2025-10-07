@@ -7,7 +7,6 @@ SYNC_BASE="/sync"
 mkdir -p "$SYNC_BASE"
 
 CFG_FILE="$CONFIG_DIR/nextcloud.cfg"
-# --- Generate [Accounts] section dynamically ---
 TMP_CFG="$(mktemp)"
 
 echo "[Accounts]" > "$TMP_CFG"
@@ -19,7 +18,7 @@ with open("/config/accounts.yml") as f:
     data = yaml.safe_load(f)
 
 for idx, acct in enumerate(data["accounts"]):
-    url = acct["url"]
+    url = acct["url"].rstrip("/")
     user = acct["user"]
     password = acct["app_password"]
 
@@ -32,23 +31,32 @@ for idx, acct in enumerate(data["accounts"]):
     sync_dir = os.path.join("/sync", safe_path)
     os.makedirs(sync_dir, exist_ok=True)
 
+    print(f"{idx}\\AppPassword={password}")
+    print(f"{idx}\\Autostart=true")
+    print(f"{idx}\\SyncDir={sync_dir}")
     print(f"{idx}\\URL={url}")
     print(f"{idx}\\User={user}")
-    print(f"{idx}\\AppPassword={password}")
-    print(f"{idx}\\SyncDir={sync_dir}")
-    print(f"{idx}\\Autostart=true")
+    print(f"{idx}\\authType=webflow")
+    print(f"{idx}\\webflow_user={user}")
+    print(f"{idx}\\dav_user={user}")
+    print(f"{idx}\\version=1")
+    print(f"{idx}\\Folders\\1\\localPath={sync_dir}/")
+    print(f"{idx}\\Folders\\1\\targetPath=/")
+    print(f"{idx}\\Folders\\1\\version=2")
+    print(f"{idx}\\Folders\\1\\paused=false")
+    print(f"{idx}\\Folders\\1\\ignoreHiddenFiles=false")
+    print(f"{idx}\\Folders\\1\\virtualFilesMode=off")
+    print()  # blank line between accounts
 EOF
 
-# --- Merge with existing config ---
+# Merge with old config, preserving everything after [Accounts]
 if [ -f "$CFG_FILE" ]; then
-    # Keep everything *after* the [Accounts] section from the old file
     awk '
         /^\[Accounts\]$/ {in_accounts=1; next}
         /^\[/ && in_accounts {in_accounts=0}
         !in_accounts
     ' "$CFG_FILE" >> "$TMP_CFG"
 else
-    # Add defaults for General section
     cat <<EOG >> "$TMP_CFG"
 
 [General]
@@ -60,8 +68,7 @@ fi
 
 mv "$TMP_CFG" "$CFG_FILE"
 
-# Accept SSL certs automatically
+# Ensure system trusts SSL without interaction
 export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
-# Start Nextcloud headless
 exec nextcloud

@@ -25,6 +25,8 @@ RUN apt-get update && \
         x11-utils \
         libgl1-mesa-glx \
         libgl1-mesa-dri \
+        libegl1-mesa \
+        libglx-mesa0 \
         mesa-utils \
         libnss3 \
         libxcomposite1 \

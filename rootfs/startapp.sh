@@ -6,7 +6,7 @@ APP_HOME="/home/app"
 
 APP_NAME="Nextcloud Client"
 # Ensure display variable is set by jlesage baseimage
-export DISPLAY=${DISPLAY:-:0}
+# export DISPLAY=${DISPLAY:-:0}
 
 echo "[startapp] Launching ${APP_NAME}..."
 
@@ -36,20 +36,33 @@ if ! pgrep -x dbus-daemon >/dev/null 2>&1; then
     dbus-daemon --session --address=unix:path=$XDG_RUNTIME_DIR/bus &
 fi
 
-# Wait for X server readiness
-echo "[startapp] Waiting for X server..."
-for i in $(seq 1 50); do
+# --- Detect X display -------------------------------------------------
+if [ -z "${DISPLAY:-}" ]; then
+    if [ -S /tmp/.X11-unix/X1 ]; then
+        export DISPLAY=:1
+    elif [ -S /tmp/.X11-unix/X0 ]; then
+        export DISPLAY=:0
+    else
+        echo "[startapp] WARNING: No X socket found, assuming :0"
+        export DISPLAY=:0
+    fi
+fi
+echo "[startapp] Using DISPLAY=$DISPLAY"
+
+# --- Wait for X server to become available ----------------------------
+echo "[startapp] Waiting for X server on $DISPLAY..."
+for i in $(seq 1 100); do
     if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
-        echo "[startapp] X server is ready."
+        echo "[startapp] X server is ready (after $i checks)."
         break
     fi
-    echo "[startapp] X server not ready yet ($i)..."
     sleep 1
 done
 
-# Give up if X server never came up
 if ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
-    echo "[startapp] ERROR: X server not ready after timeout."
+    echo "[startapp] ERROR: X server not ready after timeout. Debug info follows:"
+    ls -l /tmp/.X11-unix || true
+    ps aux | grep -E "Xvnc|Xorg" || true
     exit 1
 fi
 

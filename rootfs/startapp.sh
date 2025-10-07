@@ -68,6 +68,18 @@ fi
 
 export HOME="${APP_HOME}"
 
+# ======================
+echo "[startapp] Forcing software rendering for QtQuick..."
+unset LIBGL_ALWAYS_INDIRECT
+unset QT_XCB_GL_INTEGRATION
+export LIBGL_ALWAYS_SOFTWARE=1
+export QT_OPENGL=software
+export QT_QUICK_BACKEND=software
+export QT_XCB_FORCE_SOFTWARE_OPENGL=1
+export DISABLE_XCOMPMGR=1
+# ======================
+
+
 # Run Nextcloud client inside loop for crash recovery
 while true; do
     echo "[startapp] Starting nextcloud..."

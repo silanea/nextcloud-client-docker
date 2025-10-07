@@ -34,7 +34,9 @@ RUN mkdir -p /defaults/config/.config/Nextcloud && \
 COPY rootfs/ /
 
 # Make scripts executable
-RUN chmod +x /usr/local/bin/update-nextcloud.sh /startapp.sh
+RUN chmod +x /startapp.sh /opt/scripts/*.sh && \
+    chmod 0644 /etc/cron.d/nextcloud-update && \
+    crontab /etc/cron.d/nextcloud-update
 
 # Environment variables for jlesage base image
 ENV APP_NAME="Nextcloud Desktop"

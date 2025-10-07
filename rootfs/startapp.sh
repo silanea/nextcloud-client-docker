@@ -1,17 +1,19 @@
 #!/bin/bash
 set -e
 
-CONFIG_DIR="$HOME/.config/Nextcloud"
+CONFIG_DIR="/config/xdg/config/Nextcloud"
 mkdir -p "$CONFIG_DIR"
 SYNC_BASE="/sync"
 mkdir -p "$SYNC_BASE"
 
 CFG_FILE="$CONFIG_DIR/nextcloud.cfg"
-echo "[Accounts]" > "$CFG_FILE"
+# --- Generate [Accounts] section dynamically ---
+TMP_CFG="$(mktemp)"
 
-# Generate nextcloud.cfg from YAML
-python3 - <<'EOF' >> "$CFG_FILE"
-import yaml, os, re, urllib.parse
+echo "[Accounts]" > "$TMP_CFG"
+
+python3 - <<'EOF' >> "$TMP_CFG"
+import yaml, os, urllib.parse
 
 with open("/config/accounts.yml") as f:
     data = yaml.safe_load(f)
@@ -21,7 +23,6 @@ for idx, acct in enumerate(data["accounts"]):
     user = acct["user"]
     password = acct["app_password"]
 
-    # convert URL to safe path
     parsed = urllib.parse.urlparse(url)
     host = parsed.hostname
     port = parsed.port
@@ -37,6 +38,27 @@ for idx, acct in enumerate(data["accounts"]):
     print(f"{idx}\\SyncDir={sync_dir}")
     print(f"{idx}\\Autostart=true")
 EOF
+
+# --- Merge with existing config ---
+if [ -f "$CFG_FILE" ]; then
+    # Keep everything *after* the [Accounts] section from the old file
+    awk '
+        /^\[Accounts\]$/ {in_accounts=1; next}
+        /^\[/ && in_accounts {in_accounts=0}
+        !in_accounts
+    ' "$CFG_FILE" >> "$TMP_CFG"
+else
+    # Add defaults for General section
+    cat <<EOG >> "$TMP_CFG"
+
+[General]
+confirmExternalStorage=false
+useNewBigFolderSizeLimit=false
+showMainDialogAsNormalWindow=true
+EOG
+fi
+
+mv "$TMP_CFG" "$CFG_FILE"
 
 # Accept SSL certs automatically
 export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

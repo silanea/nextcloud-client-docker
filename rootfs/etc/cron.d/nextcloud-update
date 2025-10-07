@@ -1,2 +1,2 @@
 # Run daily at midnight, update system and restart Nextcloud client
-0 0 * * * root /usr/local/bin/update-nextcloud.sh --update >> /var/log/nextcloud-update.log 2>&1
+0 0 * * * root /usr/local/bin/update-nextcloud.sh --update >> /sync/log/nextcloud-update.log 2>&1

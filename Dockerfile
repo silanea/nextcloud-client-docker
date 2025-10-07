@@ -32,6 +32,7 @@ RUN echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 # These will be re-owned automatically by the runtime user.
 # ----------------------------------------------------
 RUN mkdir -p /defaults/config/.config/Nextcloud && \
+    mkdir -p /config/log && \
     chmod -R 777 /defaults/config
 
 # Add rootfs (cron + startup script)

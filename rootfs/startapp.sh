@@ -10,7 +10,7 @@ CFG_FILE="$CONFIG_DIR/nextcloud.cfg"
 echo "[Accounts]" > "$CFG_FILE"
 
 # Generate nextcloud.cfg from YAML
-python3 - <<'EOF'
+python3 - <<'EOF' >> "$CFG_FILE"
 import yaml, os, re, urllib.parse
 
 with open("/config/accounts.yml") as f:

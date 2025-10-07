@@ -73,10 +73,15 @@ echo "[startapp] Forcing software rendering for QtQuick..."
 unset LIBGL_ALWAYS_INDIRECT
 unset QT_XCB_GL_INTEGRATION
 export LIBGL_ALWAYS_SOFTWARE=1
+export LIBGL_ALWAYS_INDIRECT=1
+export QT_QPA_PLATFORM=xcb
 export QT_OPENGL=software
 export QT_QUICK_BACKEND=software
+export QT_XCB_GL_INTEGRATION=none
 export QT_XCB_FORCE_SOFTWARE_OPENGL=1
 export DISABLE_XCOMPMGR=1
+export QT_STYLE_OVERRIDE=Windows
+export QT_QPA_PLATFORMTHEME=
 # ======================
 
 

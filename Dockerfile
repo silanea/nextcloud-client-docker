@@ -22,7 +22,7 @@ RUN apt-get update && \
         libxcb-render-util0 \
         libxcb-util1 \
         dbus-x11 \
-        xpdyinfo \
+        xdpyinfo \
         libgl1-mesa-glx \
         libgl1-mesa-dri \
         mesa-utils \

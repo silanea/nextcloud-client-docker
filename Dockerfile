@@ -11,20 +11,25 @@ ENV HOME=/config
 # 1️⃣ System setup and dependencies
 # ----------------------------------------------------
 
-RUN apt-get update && \
-    apt-get install -y locales && \
-    locale-gen en_US.UTF-8 && \
-    update-locale LANG=en_US.UTF-8
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends locales \
+ && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+ && locale-gen \
+ && update-locale LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
 
 # Install dependencies
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y python3 python3-yaml curl gnupg ca-certificates cron jq && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Nextcloud desktop client and cron
+ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nextcloud-desktop && \

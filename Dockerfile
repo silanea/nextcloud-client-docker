@@ -13,7 +13,7 @@ ENV HOME=/config
 
 # Install dependencies
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-yaml curl gnupg ca-certificates cron jq locales && \
+    apt-get install -y python3 python3-yaml curl gnupg ca-certificates cron jq locales && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Nextcloud desktop client and cron

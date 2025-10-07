@@ -1,24 +1,36 @@
 #!/bin/bash
 set -euo pipefail
-
-CONFIG_DIR="/config/xdg/config/Nextcloud"
-mkdir -p "$CONFIG_DIR"
-SYNC_BASE="/sync"
-mkdir -p "$SYNC_BASE"
-
-CFG_FILE="$CONFIG_DIR/nextcloud.cfg"
-HASH_FILE="$CONFIG_DIR/accounts.hash"
-
 # Ensure SSL certs are accepted silently
 export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # ------------------------------------------------------------------------------
-# Parse YAML and generate nextcloud.cfg
+# Directories and files
+# ------------------------------------------------------------------------------
+CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
+CONFIG_DIR="$CONFIG_HOME/Nextcloud"
+CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
+LEGACY_CONFIG_DIR="$HOME/.config/Nextcloud"
+LEGACY_CONFIG_FILE="$LEGACY_CONFIG_DIR/nextcloud.cfg"
+ACCOUNTS_FILE="/config/accounts.yml"
+
+# Ensure directory structure
+mkdir -p "$CONFIG_DIR" "$LEGACY_CONFIG_DIR" /sync
+
+# ------------------------------------------------------------------------------
+# Unify configuration path: always use /xdg/config/Nextcloud/nextcloud.cfg
+# ------------------------------------------------------------------------------
+if [ -L "$LEGACY_CONFIG_FILE" ] || [ -f "$LEGACY_CONFIG_FILE" ]; then
+    rm -f "$LEGACY_CONFIG_FILE"
+fi
+ln -sf "$CONFIG_FILE" "$LEGACY_CONFIG_FILE"
+
+# ------------------------------------------------------------------------------
+# Generate nextcloud.cfg from accounts.yml
 # ------------------------------------------------------------------------------
 python3 - <<'EOF'
-import yaml, os, hashlib, urllib.parse, re
+import yaml, os, hashlib, urllib.parse
 
-CONFIG_DIR = os.path.expanduser("~/.config/Nextcloud")
+CONFIG_DIR = os.path.expanduser("/xdg/config/Nextcloud")
 SYNC_BASE = "/sync"
 CFG_FILE = os.path.join(CONFIG_DIR, "nextcloud.cfg")
 HASH_FILE = os.path.join(CONFIG_DIR, "accounts.hash")
@@ -30,6 +42,7 @@ def safe_path_from_url(url):
     port = f"-{parsed.port}" if parsed.port else ""
     return f"{host}{port}"
 
+# Handle missing config gracefully
 if not os.path.exists(ACCOUNTS_YML):
     print(f"WARNING: {ACCOUNTS_YML} missing; no accounts will be configured.")
     os.makedirs(CONFIG_DIR, exist_ok=True)
@@ -41,13 +54,12 @@ if not os.path.exists(ACCOUNTS_YML):
 with open(ACCOUNTS_YML, "rb") as f:
     new_hash = hashlib.sha256(f.read()).hexdigest()
 
-# Read old hash if present
 old_hash = ""
 if os.path.exists(HASH_FILE):
     with open(HASH_FILE) as f:
         old_hash = f.read().strip()
 
-# Always regenerate (since user requested auto-syncing)
+# Always regenerate config (auto-sync)
 with open(ACCOUNTS_YML) as f:
     data = yaml.safe_load(f)
 
@@ -55,7 +67,6 @@ accounts = data.get("accounts", [])
 os.makedirs(CONFIG_DIR, exist_ok=True)
 os.makedirs(SYNC_BASE, exist_ok=True)
 
-# Prepare header
 cfg_lines = [
     "[General]",
     "confirmExternalStorage=false",
@@ -87,16 +98,18 @@ for idx, acct in enumerate(accounts):
         ""
     ]
 
-# Write final config
 with open(CFG_FILE, "w") as f:
     f.write("\n".join(cfg_lines))
 
-# Update hash
 with open(HASH_FILE, "w") as f:
     f.write(new_hash)
+
 EOF
 
 # ------------------------------------------------------------------------------
-# Launch Nextcloud client
+# Accept SSL certs automatically and start client
 # ------------------------------------------------------------------------------
+export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+echo "✅ Configuration ready, starting Nextcloud client..."
 exec nextcloud

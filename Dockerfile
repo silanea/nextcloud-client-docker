@@ -2,9 +2,10 @@
 FROM jlesage/baseimage-gui:debian-12-v4
 
 USER root
-ENV APP_NAME="nextcloud" \
-    KEEP_APP_RUNNING=1 \
-    HOME=/config
+# Environment variables for jlesage base image
+ENV APP_NAME="Nextcloud Desktop"
+ENV KEEP_APP_RUNNING=1
+ENV HOME=/config
 
 # ----------------------------------------------------
 # 1️⃣ System setup and dependencies
@@ -37,14 +38,9 @@ RUN mkdir -p /defaults/config/.config/Nextcloud && \
 COPY rootfs/ /
 
 # Make scripts executable
-RUN chmod +x /startapp.sh /opt/scripts/*.sh && \
+RUN chmod +x /startapp.sh /usr/local/bin/update-nextcloud.sh && \
     chmod 0644 /etc/cron.d/nextcloud-update && \
     crontab /etc/cron.d/nextcloud-update
-
-# Environment variables for jlesage base image
-ENV APP_NAME="Nextcloud Desktop"
-ENV KEEP_APP_RUNNING=1
-ENV HOME=/config
 
 # Expose GUI ports
 EXPOSE 5800 5900

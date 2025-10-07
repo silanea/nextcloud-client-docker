@@ -59,11 +59,11 @@ for idx, acct in enumerate(accounts):
     cfg += [
         f"{idx}\\url={url}",
         f"{idx}\\User={user}",
-        f"{idx}\\AppPassword={pw}",
+        f"{idx}\\webflow_password={pw}",
         f"{idx}\\SyncDir={sync}",
         f"{idx}\\Autostart=true",
-        f"{idx}\\authType=basic",
-        f"{idx}\\dav_user={user}",
+        f"{idx}\\authType=webflow",
+        f"{idx}\\webflow_user={user}",
         f"{idx}\\displayName={user}",
         f"{idx}\\version=1",
         ""

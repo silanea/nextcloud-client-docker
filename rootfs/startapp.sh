@@ -2,63 +2,73 @@
 set -euo pipefail
 
 # ------------------------------------------------------------------------------
-# Nextcloud Client Auto Configuration + Sync Wrapper
+# Resolve XDG base dirs (all within /config to persist)
 # ------------------------------------------------------------------------------
-# - Reads /config/accounts.yml
-# - Generates a clean nextcloud.cfg (no keychain)
-# - Removes accounts not listed in accounts.yml
-# - Updates changed credentials
-# - Creates consistent symlink between /config/xdg/config and ~/.config
-# ------------------------------------------------------------------------------
+export XDG_CONFIG_HOME="/config/xdg/config"
+export XDG_CACHE_HOME="/config/xdg/cache"
+export XDG_DATA_HOME="/config/xdg/data"
+export XDG_STATE_HOME="/config/xdg/state"
 
-CONFIG_DIR="/config/xdg/config/Nextcloud"
-CONFIG_FILE="${CONFIG_DIR}/nextcloud.cfg"
-SYMLINK_PATH="/root/.config/Nextcloud/nextcloud.cfg"
-ACCOUNTS_YAML="/config/accounts.yml"
+mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 
-# Environment for headless / container use
-export NEXTCLOUD_NO_KEYCHAIN=1
-export QT_LOGGING_RULES="*.debug=false"
-
-mkdir -p "$CONFIG_DIR" "$(dirname "$SYMLINK_PATH")"
+export CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
+export CONFIG_DIR="$CONFIG_HOME/Nextcloud"
+export CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
+export ACCOUNTS_FILE="/config/accounts.yml"
 
 # ------------------------------------------------------------------------------
-# Function: log helper
+# Generate configuration from YAML
 # ------------------------------------------------------------------------------
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
-}
+python3 - <<'EOF'
+import yaml, os, hashlib, urllib.parse
 
-# ------------------------------------------------------------------------------
-# Function: regenerate config file from YAML
-# ------------------------------------------------------------------------------
-generate_config() {
-    log "Generating nextcloud.cfg from $ACCOUNTS_YAML …"
+CFG_FILE = os.environ["CONFIG_FILE"]
+ACCOUNTS_YML = os.environ["ACCOUNTS_FILE"]
+SYNC_BASE = "/sync"
 
-    echo "[Accounts]" > "$CONFIG_FILE"
-    echo "version=2" >> "$CONFIG_FILE"
+os.makedirs(os.path.dirname(CFG_FILE), exist_ok=True)
 
-    i=0
-    yq -o=json '.accounts[]' "$ACCOUNTS_YAML" | jq -c '.' | while read -r entry; do
-        url=$(echo "$entry" | jq -r '.url')
-        user=$(echo "$entry" | jq -r '.user')
-        pass=$(echo "$entry" | jq -r '.app_password')
+def safe_path(url):
+    p = urllib.parse.urlparse(url)
+    host = p.hostname or "unknown"
+    port = f"-{p.port}" if p.port else ""
+    return f"{host}{port}"
 
-        if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
-            log "⚠️  Skipping incomplete account (url/user/pass missing)"
-            continue
-        fi
+with open(ACCOUNTS_YML) as f:
+    data = yaml.safe_load(f) or {}
 
-        cat >> "$CONFIG_FILE" <<EOF
+accounts = data.get("accounts", [])
 
-[Accounts/$i]
-url=$url
-user=$user
-dav_user=$user
-authType=http
-authMethod=password
-password=$pass
-localPath=/data/$user
+cfg = [
+    "[General]",
+    "confirmExternalStorage=false",
+    "useNewBigFolderSizeLimit=false",
+    "showMainDialogAsNormalWindow=true",
+    "",
+    "[Accounts]"
+]
+
+for idx, acct in enumerate(accounts):
+    url = acct["url"].rstrip("/")
+    user = acct["user"]
+    pw = acct["app_password"]
+    sync = os.path.join(SYNC_BASE, safe_path(url), user)
+    os.makedirs(sync, exist_ok=True)
+    cfg += [
+        f"{idx}\\url={url}",
+        f"{idx}\\User={user}",
+        f"{idx}\\webflow_password={pw}",
+        f"{idx}\\SyncDir={sync}",
+        f"{idx}\\Autostart=true",
+        f"{idx}\\authType=webflow",
+        f"{idx}\\webflow_user={user}",
+        f"{idx}\\displayName={user}",
+        f"{idx}\\version=1",
+        ""
+    ]
+
+with open(CFG_FILE, "w") as f:
+    f.write("\n".join(cfg))
 EOF
         ((i++))
     done

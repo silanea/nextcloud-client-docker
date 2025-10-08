@@ -1,7 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-# Ensure SSL certs are accepted silently
-export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # ------------------------------------------------------------------------------
 # Resolve XDG base dirs (all within /config to persist)
@@ -72,11 +70,60 @@ for idx, acct in enumerate(accounts):
 with open(CFG_FILE, "w") as f:
     f.write("\n".join(cfg))
 EOF
+        ((i++))
+    done
+}
 
 # ------------------------------------------------------------------------------
-# Accept SSL certs automatically and start client
+# Function: prune orphaned accounts from local storage
 # ------------------------------------------------------------------------------
-export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+prune_obsolete_accounts() {
+    log "Pruning obsolete account directories not listed in accounts.yml …"
 
-echo "✅ Configuration ready, starting Nextcloud client..."
-exec nextcloud
+    local listed_users
+    listed_users=$(yq -r '.accounts[].user' "$ACCOUNTS_YAML" | sort -u)
+
+    # Check for local data folders (under /data/*)
+    if [[ -d /data ]]; then
+        for dir in /data/*; do
+            [[ -d "$dir" ]] || continue
+            local user
+            user=$(basename "$dir")
+            if ! grep -qx "$user" <<<"$listed_users"; then
+                log "→ Removing obsolete account config for $user (keeping data intact)"
+                # Just remove any matching config lines — don't delete data
+                sed -i "/user=$user/,/localPath=\/data\/$user/d" "$CONFIG_FILE" || true
+            fi
+        done
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Function: sync symlink (avoid config duplication)
+# ------------------------------------------------------------------------------
+sync_symlink() {
+    log "Ensuring consistent config symlink …"
+    mkdir -p "$(dirname "$SYMLINK_PATH")"
+    ln -sf "$CONFIG_FILE" "$SYMLINK_PATH"
+}
+
+# ------------------------------------------------------------------------------
+# Main execution
+# ------------------------------------------------------------------------------
+if [[ ! -f "$ACCOUNTS_YAML" ]]; then
+    log "❌ Missing $ACCOUNTS_YAML — cannot start client."
+    exit 1
+fi
+
+generate_config
+prune_obsolete_accounts
+sync_symlink
+
+log "Configuration successfully written and linked."
+log "Starting Nextcloud client …"
+
+# ------------------------------------------------------------------------------
+# Launch client (non-blocking)
+# ------------------------------------------------------------------------------
+exec nextcloud &
+wait

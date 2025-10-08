@@ -1,120 +1,119 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-# Ensure SSL certs are accepted silently
-export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # ------------------------------------------------------------------------------
-# Directories and files
+# Nextcloud Client Auto Configuration + Sync Wrapper
 # ------------------------------------------------------------------------------
-mkdir -p /xdg/config /xdg/cache /xdg/data /xdg/state
-chown -R $(id -u):$(id -g) /xdg
-
-CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
-CONFIG_DIR="$CONFIG_HOME/Nextcloud"
-CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
-LEGACY_CONFIG_DIR="$HOME/.config/Nextcloud"
-LEGACY_CONFIG_FILE="$LEGACY_CONFIG_DIR/nextcloud.cfg"
-ACCOUNTS_FILE="/config/accounts.yml"
-
-# Ensure directory structure
-mkdir -p "$CONFIG_DIR" "$LEGACY_CONFIG_DIR" /sync
-rm -f "$LEGACY_CONFIG_FILE"
-ln -sf "$CONFIG_FILE" "$LEGACY_CONFIG_FILE"
-
+# - Reads /config/accounts.yml
+# - Generates a clean nextcloud.cfg (no keychain)
+# - Removes accounts not listed in accounts.yml
+# - Updates changed credentials
+# - Creates consistent symlink between /config/xdg/config and ~/.config
 # ------------------------------------------------------------------------------
-# Unify configuration path: always use /xdg/config/Nextcloud/nextcloud.cfg
-# ------------------------------------------------------------------------------
-if [ -L "$LEGACY_CONFIG_FILE" ] || [ -f "$LEGACY_CONFIG_FILE" ]; then
-    rm -f "$LEGACY_CONFIG_FILE"
-fi
-ln -sf "$CONFIG_FILE" "$LEGACY_CONFIG_FILE"
+
+CONFIG_DIR="/config/xdg/config/Nextcloud"
+CONFIG_FILE="${CONFIG_DIR}/nextcloud.cfg"
+SYMLINK_PATH="/root/.config/Nextcloud/nextcloud.cfg"
+ACCOUNTS_YAML="/config/accounts.yml"
+
+# Environment for headless / container use
+export NEXTCLOUD_NO_KEYCHAIN=1
+export QT_LOGGING_RULES="*.debug=false"
+
+mkdir -p "$CONFIG_DIR" "$(dirname "$SYMLINK_PATH")"
 
 # ------------------------------------------------------------------------------
-# Generate nextcloud.cfg from accounts.yml
+# Function: log helper
 # ------------------------------------------------------------------------------
-python3 - <<'EOF'
-import yaml, os, hashlib, urllib.parse
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2
+}
 
-CONFIG_DIR = os.path.expanduser("/xdg/config/Nextcloud")
-SYNC_BASE = "/sync"
-CFG_FILE = os.path.join(CONFIG_DIR, "nextcloud.cfg")
-HASH_FILE = os.path.join(CONFIG_DIR, "accounts.hash")
-ACCOUNTS_YML = "/config/accounts.yml"
+# ------------------------------------------------------------------------------
+# Function: regenerate config file from YAML
+# ------------------------------------------------------------------------------
+generate_config() {
+    log "Generating nextcloud.cfg from $ACCOUNTS_YAML …"
 
-def safe_path_from_url(url):
-    parsed = urllib.parse.urlparse(url)
-    host = parsed.hostname or "unknown"
-    port = f"-{parsed.port}" if parsed.port else ""
-    return f"{host}{port}"
+    echo "[Accounts]" > "$CONFIG_FILE"
+    echo "version=2" >> "$CONFIG_FILE"
 
-# Handle missing config gracefully
-if not os.path.exists(ACCOUNTS_YML):
-    print(f"WARNING: {ACCOUNTS_YML} missing; no accounts will be configured.")
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    with open(CFG_FILE, "w") as f:
-        f.write("[General]\nconfirmExternalStorage=false\nuseNewBigFolderSizeLimit=false\nshowMainDialogAsNormalWindow=true\n")
-    raise SystemExit(0)
+    i=0
+    yq -o=json '.accounts[]' "$ACCOUNTS_YAML" | jq -c '.' | while read -r entry; do
+        url=$(echo "$entry" | jq -r '.url')
+        user=$(echo "$entry" | jq -r '.user')
+        pass=$(echo "$entry" | jq -r '.app_password')
 
-# Compute hash to track changes
-with open(ACCOUNTS_YML, "rb") as f:
-    new_hash = hashlib.sha256(f.read()).hexdigest()
+        if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
+            log "⚠️  Skipping incomplete account (url/user/pass missing)"
+            continue
+        fi
 
-old_hash = ""
-if os.path.exists(HASH_FILE):
-    with open(HASH_FILE) as f:
-        old_hash = f.read().strip()
+        cat >> "$CONFIG_FILE" <<EOF
 
-# Always regenerate config (auto-sync)
-with open(ACCOUNTS_YML) as f:
-    data = yaml.safe_load(f)
-
-accounts = data.get("accounts", [])
-os.makedirs(CONFIG_DIR, exist_ok=True)
-os.makedirs(SYNC_BASE, exist_ok=True)
-
-cfg_lines = [
-    "[General]",
-    "confirmExternalStorage=false",
-    "useNewBigFolderSizeLimit=false",
-    "showMainDialogAsNormalWindow=true",
-    "",
-    "[Accounts]"
-]
-
-for idx, acct in enumerate(accounts):
-    url = acct["url"].strip().rstrip("/")
-    user = acct["user"].strip()
-    password = acct["app_password"].strip()
-
-    safe_host = safe_path_from_url(url)
-    sync_dir = os.path.join(SYNC_BASE, safe_host, user)
-    os.makedirs(sync_dir, exist_ok=True)
-
-    cfg_lines += [
-        f"{idx}\\url={url}",
-        f"{idx}\\User={user}",
-        f"{idx}\\AppPassword={password}",
-        f"{idx}\\SyncDir={sync_dir}",
-        f"{idx}\\Autostart=true",
-        f"{idx}\\authType=basic",
-        f"{idx}\\dav_user={user}",
-        f"{idx}\\displayName={user}",
-        f"{idx}\\version=1",
-        ""
-    ]
-
-with open(CFG_FILE, "w") as f:
-    f.write("\n".join(cfg_lines))
-
-with open(HASH_FILE, "w") as f:
-    f.write(new_hash)
-
+[Accounts/$i]
+url=$url
+user=$user
+dav_user=$user
+authType=http
+authMethod=password
+password=$pass
+localPath=/data/$user
 EOF
+        ((i++))
+    done
+}
 
 # ------------------------------------------------------------------------------
-# Accept SSL certs automatically and start client
+# Function: prune orphaned accounts from local storage
 # ------------------------------------------------------------------------------
-export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+prune_obsolete_accounts() {
+    log "Pruning obsolete account directories not listed in accounts.yml …"
 
-echo "✅ Configuration ready, starting Nextcloud client..."
-exec nextcloud
+    local listed_users
+    listed_users=$(yq -r '.accounts[].user' "$ACCOUNTS_YAML" | sort -u)
+
+    # Check for local data folders (under /data/*)
+    if [[ -d /data ]]; then
+        for dir in /data/*; do
+            [[ -d "$dir" ]] || continue
+            local user
+            user=$(basename "$dir")
+            if ! grep -qx "$user" <<<"$listed_users"; then
+                log "→ Removing obsolete account config for $user (keeping data intact)"
+                # Just remove any matching config lines — don't delete data
+                sed -i "/user=$user/,/localPath=\/data\/$user/d" "$CONFIG_FILE" || true
+            fi
+        done
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# Function: sync symlink (avoid config duplication)
+# ------------------------------------------------------------------------------
+sync_symlink() {
+    log "Ensuring consistent config symlink …"
+    mkdir -p "$(dirname "$SYMLINK_PATH")"
+    ln -sf "$CONFIG_FILE" "$SYMLINK_PATH"
+}
+
+# ------------------------------------------------------------------------------
+# Main execution
+# ------------------------------------------------------------------------------
+if [[ ! -f "$ACCOUNTS_YAML" ]]; then
+    log "❌ Missing $ACCOUNTS_YAML — cannot start client."
+    exit 1
+fi
+
+generate_config
+prune_obsolete_accounts
+sync_symlink
+
+log "Configuration successfully written and linked."
+log "Starting Nextcloud client …"
+
+# ------------------------------------------------------------------------------
+# Launch client (non-blocking)
+# ------------------------------------------------------------------------------
+exec nextcloud &
+wait

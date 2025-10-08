@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ------------------------------------------------------------------------------
-# Resolve XDG base dirs (all within /config to persist)
+# XDG setup (persistent within /config)
 # ------------------------------------------------------------------------------
 export XDG_CONFIG_HOME="/config/xdg/config"
 export XDG_CACHE_HOME="/config/xdg/cache"
@@ -11,22 +11,22 @@ export XDG_STATE_HOME="/config/xdg/state"
 
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
 
-export CONFIG_HOME="${XDG_CONFIG_HOME:-/xdg/config}"
-export CONFIG_DIR="$CONFIG_HOME/Nextcloud"
+export CONFIG_DIR="$XDG_CONFIG_HOME/Nextcloud"
 export CONFIG_FILE="$CONFIG_DIR/nextcloud.cfg"
 export ACCOUNTS_FILE="/config/accounts.yml"
+export LEGACY_PATH="/config/.config/Nextcloud/nextcloud.cfg"
+
+mkdir -p "$CONFIG_DIR"
 
 # ------------------------------------------------------------------------------
 # Generate configuration from YAML
 # ------------------------------------------------------------------------------
 python3 - <<'EOF'
-import yaml, os, hashlib, urllib.parse
+import yaml, os, urllib.parse
 
 CFG_FILE = os.environ["CONFIG_FILE"]
 ACCOUNTS_YML = os.environ["ACCOUNTS_FILE"]
 SYNC_BASE = "/sync"
-
-os.makedirs(os.path.dirname(CFG_FILE), exist_ok=True)
 
 def safe_path(url):
     p = urllib.parse.urlparse(url)
@@ -34,12 +34,21 @@ def safe_path(url):
     port = f"-{p.port}" if p.port else ""
     return f"{host}{port}"
 
+if not os.path.exists(ACCOUNTS_YML):
+    print(f"WARNING: {ACCOUNTS_YML} missing; no accounts will be configured.")
+    os.makedirs(os.path.dirname(CFG_FILE), exist_ok=True)
+    with open(CFG_FILE, "w") as f:
+        f.write("[General]\nconfirmExternalStorage=false\nuseNewBigFolderSizeLimit=false\nshowMainDialogAsNormalWindow=true\n")
+    raise SystemExit(0)
+
 with open(ACCOUNTS_YML) as f:
     data = yaml.safe_load(f) or {}
 
 accounts = data.get("accounts", [])
+os.makedirs(os.path.dirname(CFG_FILE), exist_ok=True)
+os.makedirs(SYNC_BASE, exist_ok=True)
 
-cfg = [
+cfg_lines = [
     "[General]",
     "confirmExternalStorage=false",
     "useNewBigFolderSizeLimit=false",
@@ -49,81 +58,41 @@ cfg = [
 ]
 
 for idx, acct in enumerate(accounts):
-    url = acct["url"].rstrip("/")
-    user = acct["user"]
-    pw = acct["app_password"]
-    sync = os.path.join(SYNC_BASE, safe_path(url), user)
-    os.makedirs(sync, exist_ok=True)
-    cfg += [
+    url = acct["url"].strip().rstrip("/")
+    user = acct["user"].strip()
+    password = acct["app_password"].strip()
+    safe_host = safe_path(url)
+    sync_dir = os.path.join(SYNC_BASE, safe_host, user)
+    os.makedirs(sync_dir, exist_ok=True)
+
+    cfg_lines += [
         f"{idx}\\url={url}",
         f"{idx}\\User={user}",
-        f"{idx}\\webflow_password={pw}",
-        f"{idx}\\SyncDir={sync}",
+        f"{idx}\\AppPassword={password}",
+        f"{idx}\\SyncDir={sync_dir}",
         f"{idx}\\Autostart=true",
-        f"{idx}\\authType=webflow",
-        f"{idx}\\webflow_user={user}",
+        f"{idx}\\authType=basic",
+        f"{idx}\\dav_user={user}",
         f"{idx}\\displayName={user}",
         f"{idx}\\version=1",
         ""
     ]
 
 with open(CFG_FILE, "w") as f:
-    f.write("\n".join(cfg))
+    f.write("\n".join(cfg_lines))
 EOF
-        ((i++))
-    done
-}
 
 # ------------------------------------------------------------------------------
-# Function: prune orphaned accounts from local storage
+# Keep legacy path in sync (symlink)
 # ------------------------------------------------------------------------------
-prune_obsolete_accounts() {
-    log "Pruning obsolete account directories not listed in accounts.yml …"
+mkdir -p "$(dirname "$LEGACY_PATH")"
+ln -sf "$CONFIG_FILE" "$LEGACY_PATH"
 
-    local listed_users
-    listed_users=$(yq -r '.accounts[].user' "$ACCOUNTS_YAML" | sort -u)
-
-    # Check for local data folders (under /data/*)
-    if [[ -d /data ]]; then
-        for dir in /data/*; do
-            [[ -d "$dir" ]] || continue
-            local user
-            user=$(basename "$dir")
-            if ! grep -qx "$user" <<<"$listed_users"; then
-                log "→ Removing obsolete account config for $user (keeping data intact)"
-                # Just remove any matching config lines — don't delete data
-                sed -i "/user=$user/,/localPath=\/data\/$user/d" "$CONFIG_FILE" || true
-            fi
-        done
-    fi
-}
+echo "[INFO] Configuration written to: $CONFIG_FILE"
+echo "[INFO] Legacy symlink created at: $LEGACY_PATH"
 
 # ------------------------------------------------------------------------------
-# Function: sync symlink (avoid config duplication)
-# ------------------------------------------------------------------------------
-sync_symlink() {
-    log "Ensuring consistent config symlink …"
-    mkdir -p "$(dirname "$SYMLINK_PATH")"
-    ln -sf "$CONFIG_FILE" "$SYMLINK_PATH"
-}
-
-# ------------------------------------------------------------------------------
-# Main execution
-# ------------------------------------------------------------------------------
-if [[ ! -f "$ACCOUNTS_YAML" ]]; then
-    log "❌ Missing $ACCOUNTS_YAML — cannot start client."
-    exit 1
-fi
-
-generate_config
-prune_obsolete_accounts
-sync_symlink
-
-log "Configuration successfully written and linked."
-log "Starting Nextcloud client …"
-
-# ------------------------------------------------------------------------------
-# Launch client (non-blocking)
+# Start Nextcloud client
 # ------------------------------------------------------------------------------
 exec nextcloud &
 wait
